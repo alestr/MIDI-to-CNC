@@ -108,6 +108,17 @@ units_dict = dict( {
             'inch', 'in', 25.4
         ]
     })
+# Specifications for the systems of units we know about
+#
+rate_dict = dict( {
+        # 'scheme':'units', 'abbreviation', feed_rate_factor]
+        'minutes':[
+            'minute', 'm', 60.0
+        ],
+        'seconds':[
+            'second', 's', 1.0
+        ]
+    })
 
 # A way to specify any mix of axes in the order you want to voice them
 #
@@ -265,6 +276,14 @@ output.add_argument(
 )
 
 output.add_argument(
+    '-feedrate', '--feedrate',
+    metavar = ('Nx', 'Ny', 'Nz'),
+    default = 'seconds',
+    choices = sorted(rate_dict),
+    help    = "Set weather to output feedrate in unit pr second or unit pr minute"
+)
+
+output.add_argument(
     '-transpose', '--transpose',
     metavar = ('Nx', 'Ny', 'Nz'),
     default = ('0', '0', '0'),
@@ -286,7 +305,9 @@ args = parser.parse_args()
 # dictionaries defined above
 #
 scheme   =    units_dict.get( args.units   )
+feedrate   =   rate_dict.get( args.feedrate   )
 settings = machines_dict.get( args.machine )
+feedrate_factor = feedrate[2]
 
 # Check defaults and scaling of inputs
 #
@@ -375,12 +396,17 @@ def main(argv):
 
     noteEventList=[]
     all_channels=set()
+    track_num = 0
 
     for track in midi.tracks:
         track: mido.MidiTrack
+        absolute_time = 0
         channels=set()
         for event in track:
             event: mido.Message
+            #Events return delta-time apparantly (Time since last event)
+            #Adding these should give absolute times
+            absolute_time += event.time
             if event is mido.messages.BaseMessage:
                 print("Basemessage")
             if event is mido.Message:
@@ -545,27 +571,28 @@ def main(argv):
                 # making the MIDI communication more efficient
 
                 if event.velocity > 0:
-                    noteEventList.append([event.time, 1, event.note, event.velocity])
+                    noteEventList.append([absolute_time, 1, event.note, event.velocity])
                     if args.verbose:
-                        print("Note on  (time, channel, note, velocity) : %6i %6i %6i %6i" % (event.time, event.channel, event.note, event.velocity) )
+                        print("Note on  (time, channel, note, velocity) : %6i %6i %6i %6i" % (absolute_time, event.channel, event.note, event.velocity) )
                 else:
-                    noteEventList.append([event.time, 0, event.note, event.velocity])
+                    noteEventList.append([absolute_time, 0, event.note, event.velocity])
                     if args.verbose:
-                        print("Note off (time, channel, note, velocity) : %6i %6i %6i %6i" % (event.time, event.channel, event.note, event.velocity) )
+                        print("Note off (time, channel, note, velocity) : %6i %6i %6i %6i" % (absolute_time, event.channel, event.note, event.velocity) )
             if (event.type == "note_off") and (event.channel in args.channels):
 
                 if event.channel not in channels:
                     channels.add(event.channel)
 
-                noteEventList.append([event.time, 0, event.note, event.velocity])
+                noteEventList.append([absolute_time, 0, event.note, event.velocity])
                 if args.verbose:
-                    print("Note off (time, channel, note, velocity) : %6i %6i %6i %6i" % (event.time, event.channel, event.note, event.velocity) )
+                    print("Note off (time, channel, note, velocity) : %6i %6i %6i %6i" % (absolute_time, event.channel, event.note, event.velocity) )
 
         # Finished with this track
         if len(channels) > 0:
             msg=', ' . join(['%2d' % ch for ch in sorted(channels)])
-            print('Processed track %s, containing channels numbered: [%s ]' % (track.name, msg))
+            print('Processed track %d, containing channels numbered: [%s ]' % (track_num, msg))
             all_channels = all_channels.union(channels)
+        track_num += 1
 
     # List all channels encountered
     if len(all_channels) > 0:
@@ -662,17 +689,17 @@ def main(argv):
                 #
                 # feed_xyz[0] = X; feed_xyz[1] = Y; feed_xyz[2] = Z;
                 #
-                # Feed rate is expressed in mm / minutes so 60 times
+                # Feed rate is expressed in feedrate_factor times
                 # scaling factor is required.
                 
-                feed_xyz[j] = ( freq_xyz[j] * 60.0 ) / args.ppu[j]
+                feed_xyz[j] = ( freq_xyz[j] * feedrate_factor ) / args.ppu[j]
 
                 # Get the duration in seconds from the MIDI values in divisions, at the given tempo
                 duration = mido.tick2second(note[0] - last_time, midi.ticks_per_beat, tempo)
                 #duration = ( ( ( note[0] - last_time ) + 0.0 ) / ( midi.ticks_per_beat + 0.0 ) * ( tempo / 1000000.0 ) )
 
                 # Get the actual relative distance travelled per axis in mm
-                distance_xyz[j] = ( feed_xyz[j] * duration ) / 60.0 
+                distance_xyz[j] = ( feed_xyz[j] * duration ) / feedrate_factor
 
             # Now that axes can be addressed in any order, need to make sure
             # that all of them are silent before declaring a rest is due.
