@@ -171,7 +171,7 @@ input=parser.add_argument_group('Input settings')
 
 input.add_argument(
     '-infile', '--infile',
-    default = './midi_files/mario3.mid',
+    default = './midi_files/Super_Mario_Brothers_nodrums.mid',
     nargs   = '?',
     type    = argparse.FileType('r'),
     help    = 'the input MIDI filename'
