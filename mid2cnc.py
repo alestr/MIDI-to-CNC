@@ -41,6 +41,7 @@ import math
 
 # Import the MIDI parser code from the subdirectory './lib'
 import lib.midiparser as midiparser
+import mido
 
 active_axes = 3
 
@@ -355,7 +356,6 @@ suppress_comments = 0 # Set to 1 if your machine controller does not handle ( co
 tempo=None # should be set by your MIDI...
 
 def main(argv):
-    global tempo
     x=0.0
     y=0.0
     z=0.0
@@ -364,61 +364,207 @@ def main(argv):
     y_dir=1.0;
     z_dir=1.0;
 
-    midi = midiparser.File(args.infile.name)
-    
+    #midi = midiparser.File(args.infile.name)
+    midi = mido.MidiFile(args.infile.name)
+    midi.debug = True
+
     print("\nMIDI file:\n    %s" % os.path.basename(args.infile.name))
-    print("MIDI format:\n    %d" % midi.format)
-    print("Number of tracks:\n    %d" % midi.num_tracks)
-    print("Timing division:\n    %d" % midi.division)
+    print("MIDI charset:\n    %s" % midi.charset)
+    print("Number of tracks:\n    %d" % len(midi.tracks))
+    print("Timing division:\n    %d" % midi.ticks_per_beat)
 
     noteEventList=[]
     all_channels=set()
 
     for track in midi.tracks:
+        track: mido.MidiTrack
         channels=set()
-        for event in track.events:
-            if event.type == midiparser.meta.SetTempo:
-                tempo=event.detail.tempo
+        for event in track:
+            event: mido.Message
+            if event is mido.messages.BaseMessage:
+                print("Basemessage")
+            if event is mido.Message:
+                print("Message")
+            if event is mido.MetaMessage:
+                print("MetaMessage")
+            if event is mido.UnknownMetaMessage:
+                print("UnknownMetaMessage")
+            if event.is_meta and event.type == "set_tempo":
+                tempo=event.tempo
                 if args.verbose:
-                    print("Tempo change: " + str(event.detail.tempo))
-            if ((event.type == midiparser.voice.NoteOn) and (event.channel in args.channels)): # filter undesired instruments
+                    print("Tempo change: " + str(tempo))
+            if event.is_meta and event.type == "time_signature":
+                if args.verbose:
+                    print(f"Time Signature: {event.numerator}/{event.denominator}")
+                    print(f"Notated 32nd notes pr. beat: {event.notated_32nd_notes_per_beat}")
+                    print(f"Clocks pr. click: {event.clocks_per_click}")
+            if event.is_meta and event.type == "key_signature":
+                if args.verbose:
+                    print(f"Key Signature: {event.key}")
+            if ((event.type == "control_change") and (event.channel in args.channels)):
+                if event.control >= 32 and \
+                     event.control <= 63: pass # ===[ LSB Controller for 0-31 ]===
+                                               # Same as 0 to 32 below, but value is little-endian, not big as usual
+                elif event.control == 0: pass  # ===[ Bank Select ]===
+                                               # Allows user to switch bank for patch selection.
+                                               # Program change used with Bank Select.
+                                               # MIDI can access 16,384 patches per MIDI channel.
+                elif event.control == 1: pass  # ===[ Modulation Wheel ]===
+                                               # Generally this CC controls a vibrato
+                                               # effect (pitch, loudness, brighness).
+                                               # What is modulated is based on the patch.
+                elif event.control == 2: pass  # ===[ Breath Controller ]===
+                                               # Oftentimes associated with aftertouch 
+                                               # messages. It was originally intended for use with a breath
+                                               # MIDI controller in which blowing harder produced higher MIDI
+                                               # control values. It can be used for modulation as well.
+                elif event.control == 3: pass  # !=== Undefined ===!
+                elif event.control == 4: pass  # ===[ Foot Pedal ]===
+                                               # Often used with aftertouch messages.
+                                               # It can send a continuous stream of values based on how the pedal is used.
+                elif event.control == 5: pass  # ===[ Portamento Time ]===
+                                               # Controls portamento rate to slide
+                                               # between 2 notes played subsequently.
+                elif event.control == 6: pass  # ===[ Data Entry ]===
+                                               # Controls Value for NRPN or RPN parameters.
+                elif event.control == 7: pass  # ===[ Volume ]===
+                                               # Controls the volume of the channel.
+                elif event.control == 8: pass  # ===[ Balance ]===
+                                               # Controls the left and right balance, generally
+                                               # for _stereo_ patches. A value of 64 equals the center.
+                elif event.control == 9: pass  # !=== Undefined ===!
+                elif event.control == 10: pass # ===[ Pan ]===
+                                               # Controls the left and right balance, generally
+                                               # for _mono_ patches. A value of 64 equals the center.
+                elif event.control == 11: pass # ===[ Expression ]===
+                                               # Expression is a percentage of volume (CC7).
+                elif event.control == 12: pass # ===[ Effect Controller 1 ]===
+                                               # Usually used to control a parameter of an effect within
+                                               # the synth or workstation.
+                elif event.control == 13: pass # ===[ Effect Controller 2 ]===
+                                               # Usually used to control a parameter of an effect within
+                                               # the synth or workstation.
+
+                # 14-15 undefined, 15-19 General purpose, 20-31 undefined
+
+                elif event.control == 64: pass # ===[ Damper/sustain Pedal on/off ]===
+                                               # Value of ≤63 is off, and ≥64 is on
+                                               # On/off switch that controls sustain pedal. Nearly
+                                               # every synth will react to CC 64. (See also Sostenuto CC 66)
+                elif event.control == 65: pass # ===[ Portamento on/off ]===
+                                               # On/off switch (Value of ≤63 is off, and ≥64 is on)
+                                               # Portamento is a slide from one note to another,
+                                               # especially in instruments such as the violin.
+                elif event.control == 66: pass # ===[ Sostenuto Pedal on/off ]===
+                                               # On/off switch – Like the Sustain controller (CC 64),
+                                               # However, it only holds notes that were “On” when the
+                                               # pedal was pressed. People use it to “hold” chords”
+                                               # and play melodies over the held chord.
+                elif event.control == 67: pass # ===[ Soft Pedal on/off ]===
+                                               # On/off switch
+                                               # Lowers the volume of notes played.
+                elif event.control == 68: pass # ===[ Legato FootSwitch ]===
+                                               # Turns Legato effect between 2 subsequent notes on or off.
+                elif event.control == 69: pass # ===[ Hold 2 ]===
+                                               # Another way to “hold notes” (see MIDI CC 64 and
+                                               # MIDI CC 66). However notes fade out according to their
+                                               # release parameter rather than when the pedal is released.
+                elif event.control == 70: pass # ===[ Sound Controller 1 ]===
+                                               # Usually controls the way a sound is produced.
+                                               # Default = Sound Variation.
+                elif event.control == 71: pass # ===[ Sound Controller 2 ]===
+                                               # Allows shaping the Voltage Controlled Filter (VCF).
+                                               # Default = Resonance also (Timbre or Harmonics)
+                elif event.control == 72: pass # ===[ Sound Controller 3 ]===
+                                               # Controls release time of the Voltage controlled
+                                               # Amplifier (VCA). Default = Release Time.
+                elif event.control == 73: pass # ===[ Sound Controller 4 ]===
+                                               # Controls the “Attack’ of a sound. The attack is
+                                               # the amount of time it takes for the sound to reach maximum amplitude.
+                elif event.control == 74: pass # ===[ Sound Controller 5 ]===
+                                               # Controls VCFs cutoff frequency of the filter.
+                elif event.control >= 75 and \
+                     event.control <= 79: pass # ===[ Sound Controller 6 to 10 ]===
+                                               # Generic – Some manufacturers may use to further shave their sounds.
+
+                # 80-83 Is generic controls
+
+                elif event.control == 84: pass # ===[ Portamento CC Control ]===
+                                               # Controls the amount of Portamento.
+                # 85-90 undefined
+
+                elif event.control == 91: pass # ===[ Effects Depth: Reverb ]===
+                                               # Usually controls reverb send amount
+                elif event.control == 92: pass # ===[ Effects Depth: Tremolo ]===
+                                               # Usually controls tremolo amount
+                elif event.control == 93: pass # ===[ Effects Depth: Chorus ]===
+                                               # Usually controls chorus amount
+                elif event.control == 94: pass # ===[ Effects Depth: Celeste (Detune) ]===
+                                               # Usually controls detune amount
+                elif event.control == 95: pass # ===[ Effects Depth: Phaser ]===
+                                               # Usually controls phaser amount
+
+                # 96-101 Non defined parameter adjustments
+                # 102-119 undefined
+
+                # 120-127 is channel "mode" messages. No values are used except for CC 122 and 126
+                elif event.control == 120: pass # ===[ All Sound Off ]===
+                                                # Mutes all sound. It does so regardless of release
+                                                # time or sustain. (See MIDI CC 123)
+                elif event.control == 121: pass # ===[ Reset All Controllers ]===
+                                                # It will reset all controllers to their default.
+                elif event.control == 122: pass # ===[ Local on/off Switch ]===
+                                                # Turns internal connection of a MIDI keyboard or
+                                                # workstation, etc. on or off. If you use a computer, you
+                                                # will most likely want local control off to avoid notes
+                                                # being played twice. Once locally and twice when
+                                                # the note is sent back from the computer to your keyboard.
+                                                # 0 = off , 127 = on
+                elif event.control == 123: pass # ===[ All Notes Off ]===
+                                                # Mutes all sounding notes. Release time will still be
+                                                # maintained, and notes held by sustain will not turn
+                                                # off until sustain pedal is depressed.
+                elif event.control == 124: pass # ===[ Omni Mode Off ]===
+                                                # Sets to “Omni Off” mode.
+                elif event.control == 125: pass # ===[ Omni Mode On ]===
+                                                # Sets to “Omni On” mode.
+                elif event.control == 126: pass # ===[ Mono Mode ]===
+                                                # Sets device mode to Monophonic. The value equals the
+                                                # number of channels, or 0 if the number of channels
+                                                # equals the number of voices in the receiver.
+                elif event.control == 127: pass # ===[ Poly Mode ]===
+                                                # Sets device mode to Polyphonic.
+                
+            if ((event.type == "note_on") and (event.channel in args.channels)): # filter undesired instruments
 
                 if event.channel not in channels:
                     channels.add(event.channel)
 
                 # NB: looks like some use "note on (vel 0)" as equivalent to note off, so check for vel=0 here and treat it as a note-off.
-                if event.detail.velocity > 0:
-                    noteEventList.append([event.absolute, 1, event.detail.note_no, event.detail.velocity])
+                # Comment: note_on (vel 0) is indeed used as note_off, but it is to keep the status flag set to running, thus
+                # making the MIDI communication more efficient
+
+                if event.velocity > 0:
+                    noteEventList.append([event.time, 1, event.note, event.velocity])
                     if args.verbose:
-                        print("Note on  (time, channel, note, velocity) : %6i %6i %6i %6i" % (event.absolute, event.channel, event.detail.note_no, event.detail.velocity) )
+                        print("Note on  (time, channel, note, velocity) : %6i %6i %6i %6i" % (event.time, event.channel, event.note, event.velocity) )
                 else:
-                    noteEventList.append([event.absolute, 0, event.detail.note_no, event.detail.velocity])
+                    noteEventList.append([event.time, 0, event.note, event.velocity])
                     if args.verbose:
-                        print("Note off (time, channel, note, velocity) : %6i %6i %6i %6i" % (event.absolute, event.channel, event.detail.note_no, event.detail.velocity) )
-            if (event.type == midiparser.voice.NoteOff) and (event.channel in args.channels):
+                        print("Note off (time, channel, note, velocity) : %6i %6i %6i %6i" % (event.time, event.channel, event.note, event.velocity) )
+            if (event.type == "note_off") and (event.channel in args.channels):
 
                 if event.channel not in channels:
                     channels.add(event.channel)
 
-                noteEventList.append([event.absolute, 0, event.detail.note_no, event.detail.velocity])
+                noteEventList.append([event.time, 0, event.note, event.velocity])
                 if args.verbose:
-                    print("Note off (time, channel, note, velocity) : %6i %6i %6i %6i" % (event.absolute, event.channel, event.detail.note_no, event.detail.velocity) )
-            if event.type == midiparser.meta.TrackName: 
-                if args.verbose:
-                    print(event.detail.text.strip())
-            if event.type == midiparser.meta.CuePoint: 
-                if args.verbose:
-                    print(event.detail.text.strip())
-            if event.type == midiparser.meta.Lyric: 
-                if args.verbose:
-                    print(event.detail.text.strip())
-                #if event.type == midiparser.meta.KeySignature: 
-                # ...
+                    print("Note off (time, channel, note, velocity) : %6i %6i %6i %6i" % (event.time, event.channel, event.note, event.velocity) )
 
         # Finished with this track
         if len(channels) > 0:
             msg=', ' . join(['%2d' % ch for ch in sorted(channels)])
-            print('Processed track %d, containing channels numbered: [%s ]' % (track.number, msg))
+            print('Processed track %s, containing channels numbered: [%s ]' % (track.name, msg))
             all_channels = all_channels.union(channels)
 
     # List all channels encountered
@@ -455,6 +601,7 @@ def main(argv):
 
     args.outfile.write ("G90 (Absolute posiitioning)\n")
     args.outfile.write ("G92 X0 Y0 Z0 (set origin to current position)\n")
+    args.outfile.write ("G94 (set feed to mm/min)\n")
     args.outfile.write ("G0 X0 Y0 Z0 F2000.0 (Pointless move to origin to reset feed rate to a sane value)\n")
 
     # Handle the prefix Gcode, if present
@@ -464,13 +611,26 @@ def main(argv):
             args.outfile.write (line) 
 
     for note in noteEventList:
-        # note[timestamp, note off/note on, note_no, velocity]
+        # note[abs-time, 1=on 0=off, note, velocity]
+        # Issue that next is that the length of the note isn't calculated from ON to OFF,
+        # just from last time any note went on/off happened.
+        # The first note will not work, since it's duration here will be "time since zero-time"
+        # Duration should always look ahead to the turn-off message for the note
+        # A list of "ON" notes should be kept, and track/channel should determin what axis it should
+        # be played on. If a channel/track has multiple notes, user should be able to set
+        # the "critical" notes to be played.
+        # After running trough the entire song, the axis should be evaluated for MIN and MAX feedrate
+        # since VERY low feedrates might need an octave transposing up, likewise for very high transpose down.
+        # Possible options are to input a range of feedrates that the axis "plays best", and the
+        # program can try and transpose all axis up or down by just one semitone.
+        # Any song will be "OK" if ALL axis are transposed semitonal, and still OK if just one axis is transposed
+        # a full octave.
         if last_time < note[0]:
         
             freq_xyz=[0,0,0]
             feed_xyz=[0,0,0]
             distance_xyz=[0,0,0]
-            duration=0
+            duration=0.0
 
             # "i" ranges from 0 to "the number of active notes *or* the number of active axes, 
             # whichever is LOWER". Note that the range operator stops
@@ -508,14 +668,15 @@ def main(argv):
                 feed_xyz[j] = ( freq_xyz[j] * 60.0 ) / args.ppu[j]
 
                 # Get the duration in seconds from the MIDI values in divisions, at the given tempo
-                duration = ( ( ( note[0] - last_time ) + 0.0 ) / ( midi.division + 0.0 ) * ( tempo / 1000000.0 ) )
+                duration = mido.tick2second(note[0] - last_time, midi.ticks_per_beat, tempo)
+                #duration = ( ( ( note[0] - last_time ) + 0.0 ) / ( midi.ticks_per_beat + 0.0 ) * ( tempo / 1000000.0 ) )
 
                 # Get the actual relative distance travelled per axis in mm
                 distance_xyz[j] = ( feed_xyz[j] * duration ) / 60.0 
 
             # Now that axes can be addressed in any order, need to make sure
             # that all of them are silent before declaring a rest is due.
-            if distance_xyz[0] + distance_xyz[1] + distance_xyz[2] > 0: 
+            if distance_xyz[0] + distance_xyz[1] + distance_xyz[2] > 0.0: 
                 # At least one axis is playing, so process the note into
                 # movements
                 #
@@ -547,6 +708,16 @@ def main(argv):
 
             else:
                 if duration > 0:
+                    # This will never happen.
+                    # When all distance_xyz are set to zero, the duration will also be zero
+                    # But the above else statement will trigger when all notes go off.
+                    # 
+                    # Pauses need to be handeled differently.
+                    # A solution would be to get the most quiet and most sensitive axis
+                    # and set it to the lowest feedrate possible for that machine
+                    # and let it travel a distance that results in the "pause" time being satisfied
+                    # with a very quiet movement of the most silent axis.
+
                     # Handle 'rests' in addition to notes.
                     # How standard is this pause gcode, anyway?
                     args.outfile.write("G04 P%0.4f\n" % duration )
