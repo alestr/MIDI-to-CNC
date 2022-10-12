@@ -1,0 +1,183 @@
+{
+    "current": {
+        "template": "multicam_custom",
+        "units": "metric"
+    },
+    "defaults": {
+        "machine_name": "Default",
+        "units": "metric",
+        "feedrate": "minutes",
+        "size": {
+            "min": {
+                "X": 0.0,
+                "Y": 0.0,
+                "Z": 0.0
+            },
+            "max": {
+                "X": 20.0,
+                "Y": 20.0,
+                "Z": 10.0
+            }
+        },
+        "steps": {
+            "X": 200.0,
+            "Y": 200.0,
+            "Z": 200.0
+        },
+        "axis": "XYZ",
+        "preplay": "",
+        "postplay": ""
+    },
+    "templates": {
+        "custom": {
+            "machine_name": "Custom",
+            "units": "metric",
+            "feedrate": "minutes",
+            "size": {
+                "min": {
+                    "X": 0.0,
+                    "Y": 0.0,
+                    "Z": 0.0
+                },
+                "max": {
+                    "X": 10.0,
+                    "Y": 10.0,
+                    "Z": 10.0
+                }
+            },
+            "steps": {
+                "X": 10.0,
+                "Y": 10.0,
+                "Z": 10.0
+            },
+            "axis": "XYZ",
+            "preplay": "",
+            "postplay": ""
+        },
+        "cupcake": {
+            "machine_name": "MakerBot Cupcake",
+            "units": "metric",
+            "feedrate": "minutes",
+            "size": {
+                "min": {
+                    "X": -20.0,
+                    "Y": -20.0,
+                    "Z": 0.0
+                },
+                "max": {
+                    "X": 20.0,
+                    "Y": 20.0,
+                    "Z": 10.0
+                }
+            },
+            "steps": {
+                "X": 11.767,
+                "Y": 11.767,
+                "Z": 320.0
+            },
+            "axis": "XYZ",
+            "preplay": "",
+            "postplay": ""
+        },
+        "thingomatic": {
+            "machine_name": "MakerBot Thing-O-Matic",
+            "units": "metric",
+            "feedrate": "minutes",
+            "size": {
+                "min": {
+                    "X": -20.0,
+                    "Y": -20.0,
+                    "Z": 0.0
+                },
+                "max": {
+                    "X": 20.0,
+                    "Y": 20.0,
+                    "Z": 10.0
+                }
+            },
+            "steps": {
+                "X": 47.069852,
+                "Y": 47.069852,
+                "Z": 200.0
+            },
+            "axis": "XYZ",
+            "preplay": "",
+            "postplay": ""
+        },
+        "shapercube": {
+            "machine_name": "RepRap ShaperCube",
+            "units": "metric",
+            "feedrate": "minutes",
+            "size": {
+                "min": {
+                    "X": 0.0,
+                    "Y": 0.0,
+                    "Z": 0.0
+                },
+                "max": {
+                    "X": 10.0,
+                    "Y": 10.0,
+                    "Z": 10.0
+                }
+            },
+            "steps": {
+                "X": 10.0,
+                "Y": 10.0,
+                "Z": 320.0
+            },
+            "axis": "XYZ",
+            "preplay": "",
+            "postplay": ""
+        },
+        "ultimaker": {
+            "machine_name": "Ultimaker",
+            "units": "metric",
+            "feedrate": "minutes",
+            "size": {
+                "min": {
+                    "X": 0.0,
+                    "Y": 0.0,
+                    "Z": 0.0
+                },
+                "max": {
+                    "X": 10.0,
+                    "Y": 10.0,
+                    "Z": 10.0
+                }
+            },
+            "steps": {
+                "X": 47.069852,
+                "Y": 47.069852,
+                "Z": 160.0
+            },
+            "axis": "XYZ",
+            "preplay": "",
+            "postplay": ""
+        },
+        "multicam_custom": {
+            "machine_name": "MultiCam M44+",
+            "units": "metric",
+            "feedrate": "minutes",
+            "size": {
+                "min": {
+                    "X": 0.0,
+                    "Y": 0.0,
+                    "Z": 0.0
+                },
+                "max": {
+                    "X": 120.0,
+                    "Y": 120.0,
+                    "Z": 20.0
+                }
+            },
+            "steps": {
+                "X": 228.0,
+                "Y": 228.0,
+                "Z": 393.700775
+            },
+            "axis": "ZYX",
+            "preplay": "",
+            "postplay": ""
+        }
+    }
+}
